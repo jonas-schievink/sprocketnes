@@ -1,2 +1,5 @@
 /target
 /Cargo.lock
+*.dll
+*.nes
+*.sav
