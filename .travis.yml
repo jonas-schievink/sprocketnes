@@ -1,0 +1,25 @@
+language: rust
+sudo: false
+rust:
+  - stable
+  - beta
+  - nightly
+env:
+  global:
+    - LD_LIBRARY_PATH: "$HOME/sdl2install/lib"
+install:
+  - mkdir sdl2install
+  - export SDL2DIR="$HOME/sdl2install"
+  - wget https://www.libsdl.org/release/SDL2-2.0.3.tar.gz
+  - tar xzf SDL2-2.0.3.tar.gz
+  - cd SDL2-2.0.3
+  - ./configure --prefix=$SDL2DIR
+  - make
+  - make install
+  - ls $SDL2DIR
+  - ls $SDL2DIR/lib
+script:
+  - echo "$LD_LIBRARY_PATH"
+  - mkdir -p "SDL2-2.0.3/lib/x86_64-unknown-linux-gnu"
+  - cp "$HOME/sdl2install/lib/*" "SDL2-2.0.3/lib/x86_64-unknown-linux-gnu"
+  - cargo build --no-default-features
