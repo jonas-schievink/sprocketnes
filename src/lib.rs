@@ -28,7 +28,7 @@ pub mod resampler;
 use apu::Apu;
 use cpu::Cpu;
 use gfx::{Gfx, Scale};
-use input::{Input, InputResult};
+use input::Input;
 use mapper::Mapper;
 use mem::MemMap;
 use ppu::{Oam, Ppu, Vram};
@@ -61,14 +61,14 @@ pub fn start_emulator(rom: Rom, scale: Scale) {
     let sdl = sdl2::init().unwrap();
     let video = sdl.video().unwrap();
     let audio = sdl.audio().unwrap();
-    let event_pump = sdl.event_pump().unwrap();
+    let mut event_pump = sdl.event_pump().unwrap();
     let mut gfx = Gfx::new(&video, scale);
     let audio_buffer = audio::open(&audio);
 
     let mapper: Box<Mapper+Send> = mapper::create_mapper(rom);
     let mapper = Rc::new(RefCell::new(mapper));
     let ppu = Ppu::new(Vram::new(mapper.clone()), Oam::new());
-    let input = Input::new(event_pump);
+    let input = Input::new();
     let apu = Apu::new(audio_buffer);
     let memmap = MemMap::new(ppu, input, mapper, apu);
     let mut cpu = Cpu::new(memmap);
@@ -79,7 +79,7 @@ pub fn start_emulator(rom: Rom, scale: Scale) {
     let mut last_time = time::precise_time_s();
     let mut frames = 0;
 
-    loop {
+    'main: loop {
         cpu.step();
 
         let ppu_result = cpu.mem.ppu.step(cpu.cy);
@@ -97,16 +97,27 @@ pub fn start_emulator(rom: Rom, scale: Scale) {
             record_fps(&mut last_time, &mut frames);
             cpu.mem.apu.play_channels();
 
-            match cpu.mem.input.check_input() {
-                InputResult::Continue => {}
-                InputResult::Quit => break,
-                InputResult::SaveState => {
-                    cpu.save(&mut File::create(&Path::new("state.sav")).unwrap());
-                    gfx.status_line.set("Saved state".to_string());
-                }
-                InputResult::LoadState => {
-                    cpu.load(&mut File::open(&Path::new("state.sav")).unwrap());
-                    gfx.status_line.set("Loaded state".to_string());
+            for event in event_pump.poll_iter() {
+                use sdl2::event::Event;
+                use sdl2::keyboard::Keycode;
+
+                match event {
+                    Event::KeyDown { keycode: Some(Keycode::Escape), .. }
+                    | Event::Quit { .. } => break 'main,
+
+                    Event::KeyDown { keycode: Some(Keycode::S), .. } => {
+                        cpu.save(&mut File::create(&Path::new("state.sav")).unwrap());
+                        gfx.status_line.set("Saved state".to_string());
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::L), .. } => {
+                        cpu.load(&mut File::open(&Path::new("state.sav")).unwrap());
+                        gfx.status_line.set("Loaded state".to_string());
+                    }
+
+                    _ => {
+                        // Let the input module handle it
+                        cpu.mem.input.handle_event(event);
+                    }
                 }
             }
         }

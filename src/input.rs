@@ -4,7 +4,6 @@
 
 use mem::Mem;
 
-use sdl2::EventPump;
 use sdl2::event::Event;
 use sdl2::event::Event::*;
 use sdl2::keyboard::Keycode;
@@ -78,18 +77,10 @@ pub struct GamePadState {
 
 pub struct Input {
     pub gamepad_0: GamePadState,
-    event_pump: EventPump,
-}
-
-pub enum InputResult {
-    Continue,   // Keep playing.
-    Quit,       // Quit the emulator.
-    SaveState,  // Save a state.
-    LoadState,  // Load a state.
 }
 
 impl Input {
-    pub fn new(event_pump: EventPump) -> Input {
+    pub fn new() -> Input {
         Input {
             gamepad_0: GamePadState {
                 left: false,
@@ -103,7 +94,6 @@ impl Input {
 
                 strobe_state: StrobeState{val: STROBE_STATE_A}
             },
-            event_pump: event_pump,
         }
     }
 
@@ -121,22 +111,14 @@ impl Input {
         }
     }
 
-    pub fn check_input(&mut self) -> InputResult {
-        while let Some(ev) = self.event_pump.poll_event() {
-            match ev {
-                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => return InputResult::Quit,
-                Event::KeyDown { keycode: Some(Keycode::S), .. } => return InputResult::SaveState,
-                Event::KeyDown { keycode: Some(Keycode::L), .. } => return InputResult::LoadState,
-                Event::KeyDown { keycode: Some(key), .. } => {
-                    self.handle_gamepad_event(key, true)
-                }
-                Event::KeyUp { keycode: Some(key), .. } => self.handle_gamepad_event(key, false),
-                Event::Quit { .. } => return InputResult::Quit,
-                _ => {}
+    pub fn handle_event(&mut self, event: Event) {
+        match event {
+            Event::KeyDown { keycode: Some(key), .. } => {
+                self.handle_gamepad_event(key, true)
             }
+            Event::KeyUp { keycode: Some(key), .. } => self.handle_gamepad_event(key, false),
+            _ => {}
         }
-
-        return InputResult::Continue;
     }
 }
 
