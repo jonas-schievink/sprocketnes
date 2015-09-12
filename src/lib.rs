@@ -99,6 +99,7 @@ pub fn start_emulator(rom: Rom, scale: Scale) {
 
             for event in event_pump.poll_iter() {
                 use sdl2::event::Event;
+                use sdl2::event::WindowEventId;
                 use sdl2::keyboard::Keycode;
 
                 match event {
@@ -112,6 +113,12 @@ pub fn start_emulator(rom: Rom, scale: Scale) {
                     Event::KeyDown { keycode: Some(Keycode::L), .. } => {
                         cpu.load(&mut File::open(&Path::new("state.sav")).unwrap());
                         gfx.status_line.set("Loaded state".to_string());
+                    }
+
+                    Event::Window {
+                        win_event_id: WindowEventId::Resized, data1: w, data2: h, ..
+                    } => {
+                        gfx.on_window_resize(w as u32, h as u32);
                     }
 
                     _ => {

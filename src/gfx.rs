@@ -287,23 +287,66 @@ pub struct Gfx<'a> {
 
 impl<'a> Gfx<'a> {
     pub fn new(video: &VideoSubsystem, scale: Scale) -> Gfx<'a> {
-        let mut window_builder = video.window("sprocketnes",
-                                              (SCREEN_WIDTH as usize * scale.factor()) as u32,
-                                              (SCREEN_HEIGHT as usize * scale.factor()) as u32);
-        let window = window_builder.position_centered().build().unwrap();
+        let win_w = (SCREEN_WIDTH as usize * scale.factor()) as u32;
+        let win_h = (SCREEN_HEIGHT as usize * scale.factor()) as u32;
+        let window = video.window("sprocketnes", win_w, win_h)
+            .position_centered()
+            .resizable()
+            .build().unwrap();
 
-        let renderer = window.renderer().accelerated().present_vsync().build().unwrap();
+        let renderer = window.renderer()
+            .accelerated()
+            .present_vsync()
+            .build().unwrap();
         let texture = renderer.create_texture(BGR24,
                                               TextureAccess::Streaming,
                                               (SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32))
                                               .unwrap();
 
-        Gfx {
+        let mut gfx = Gfx {
             renderer: Box::new(renderer),
             texture: Box::new(texture),
             scale: scale,
             status_line: StatusLine::new(),
+        };
+        gfx.on_window_resize(win_w, win_h);
+
+        gfx
+    }
+
+    /// Adjust rendering for window resize
+    pub fn on_window_resize(&mut self, w: u32, h: u32) {
+        use sdl2::rect::Rect;
+
+        let w = w as f32;
+        let h = h as f32;
+
+        const NES_RATIO: f32 = SCREEN_WIDTH as f32 / SCREEN_HEIGHT as f32;
+        let ratio = w / h;
+
+        let view_w;
+        let view_h;
+
+        if ratio > NES_RATIO {
+            // Too wide
+            view_h = h;
+            view_w = h * NES_RATIO;
+        } else {
+            // Too high
+            view_w = w;
+            view_h = w / NES_RATIO;
         }
+
+        let border_x = (w - view_w).round() as u32 / 2;
+        let border_y = (h - view_h).round() as u32 / 2;
+        let view_w = view_w.round() as u32;
+        let view_h = view_h.round() as u32;
+
+        let viewport = Rect::new(border_x as i32, border_y as i32, view_w, view_h).unwrap();
+        self.renderer.set_viewport(viewport);
+
+        println!("Window resized to {} x {} ({} ; {}), viewport {} x {}, border {}|{}",
+            w, h, ratio, NES_RATIO, view_w, view_h, border_x, border_y);
     }
 
     pub fn tick(&mut self) {
