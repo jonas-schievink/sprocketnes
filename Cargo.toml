@@ -12,3 +12,7 @@ sdl2 = "0.6"
 time = "0.1"
 libc = "0.1"
 lazy_static = "0.1"
+
+[features]
+default = ["speex"]
+speex = []

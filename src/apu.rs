@@ -6,7 +6,7 @@
 
 use audio::{self, OutputBuffer};
 use mem::Mem;
-use speex::Resampler;
+use resampler::Resampler;
 use util::{Save, Xorshift};
 
 use std::fs::File;

@@ -23,9 +23,7 @@ pub mod mapper;
 pub mod mem;
 pub mod ppu;
 pub mod rom;
-
-// C library support
-pub mod speex;
+pub mod resampler;
 
 use apu::Apu;
 use cpu::Cpu;
