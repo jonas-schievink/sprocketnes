@@ -4,7 +4,7 @@
 
 use sdl2::pixels::PixelFormatEnum::BGR24;
 use sdl2::render::{Renderer, Texture, TextureAccess};
-use sdl2::{InitBuilder, Sdl};
+use sdl2::VideoSubsystem;
 
 
 /// Emulated screen width in pixels
@@ -286,14 +286,10 @@ pub struct Gfx<'a> {
 }
 
 impl<'a> Gfx<'a> {
-    pub fn new(scale: Scale) -> (Gfx<'a>, Sdl) {
-        // FIXME: Handle SDL better
-
-        let sdl = InitBuilder::new().video().audio().timer().events().unwrap();
-
-        let mut window_builder = sdl.window("sprocketnes",
-                                            (SCREEN_WIDTH as usize * scale.factor()) as u32,
-                                            (SCREEN_HEIGHT as usize * scale.factor()) as u32);
+    pub fn new(video: &VideoSubsystem, scale: Scale) -> Gfx<'a> {
+        let mut window_builder = video.window("sprocketnes",
+                                              (SCREEN_WIDTH as usize * scale.factor()) as u32,
+                                              (SCREEN_HEIGHT as usize * scale.factor()) as u32);
         let window = window_builder.position_centered().build().unwrap();
 
         let renderer = window.renderer().accelerated().present_vsync().build().unwrap();
@@ -302,12 +298,12 @@ impl<'a> Gfx<'a> {
                                               (SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32))
                                               .unwrap();
 
-        (Gfx {
+        Gfx {
             renderer: Box::new(renderer),
             texture: Box::new(texture),
             scale: scale,
             status_line: StatusLine::new(),
-        }, sdl)
+        }
     }
 
     pub fn tick(&mut self) {
