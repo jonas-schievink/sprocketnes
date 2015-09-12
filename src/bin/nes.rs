@@ -5,7 +5,6 @@
 extern crate nes;
 
 use nes::rom::Rom;
-use nes::gfx::Scale;
 
 use std::env;
 use std::path::Path;
@@ -13,7 +12,7 @@ use std::fs::File;
 
 struct Options {
     rom_path: String,
-    scale: Scale,
+    scale: f32,
 }
 
 fn usage() {
@@ -27,14 +26,14 @@ fn usage() {
 fn parse_args() -> Option<Options> {
     let mut options = Options {
         rom_path: String::new(),
-        scale: Scale::Scale1x,
+        scale: 3.0,
     };
 
     for arg in env::args().skip(1) {
         match &*arg {
-            "-1" => { options.scale = Scale::Scale1x; },
-            "-2" => { options.scale = Scale::Scale2x; },
-            "-3" => { options.scale = Scale::Scale3x; },
+            "-1" => { options.scale = 1.0; },
+            "-2" => { options.scale = 2.0; },
+            "-3" => { options.scale = 3.0; },
             _ if arg.starts_with('-') => { usage(); return None; },
             _ => { options.rom_path = arg; },
         }

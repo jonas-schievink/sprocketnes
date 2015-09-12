@@ -257,38 +257,16 @@ impl StatusLine {
     }
 }
 
-//
-// Screen scaling
-//
-
-#[derive(Copy, Clone)]
-pub enum Scale {
-    Scale1x,
-    Scale2x,
-    Scale3x,
-}
-
-impl Scale {
-    fn factor(self) -> usize {
-        match self {
-            Scale::Scale1x => 1,
-            Scale::Scale2x => 2,
-            Scale::Scale3x => 3,
-        }
-    }
-}
-
 pub struct Gfx<'a> {
     pub renderer: Box<Renderer<'a>>,
     pub texture: Box<Texture>,
-    pub scale: Scale,
     pub status_line: StatusLine,
 }
 
 impl<'a> Gfx<'a> {
-    pub fn new(video: &VideoSubsystem, scale: Scale) -> Gfx<'a> {
-        let win_w = (SCREEN_WIDTH as usize * scale.factor()) as u32;
-        let win_h = (SCREEN_HEIGHT as usize * scale.factor()) as u32;
+    pub fn new(video: &VideoSubsystem, scale: f32) -> Gfx<'a> {
+        let win_w = (SCREEN_WIDTH as f32 * scale) as u32;
+        let win_h = (SCREEN_HEIGHT as f32 * scale) as u32;
         let window = video.window("sprocketnes", win_w, win_h)
             .position_centered()
             .resizable()
@@ -306,7 +284,6 @@ impl<'a> Gfx<'a> {
         let mut gfx = Gfx {
             renderer: Box::new(renderer),
             texture: Box::new(texture),
-            scale: scale,
             status_line: StatusLine::new(),
         };
         gfx.on_window_resize(win_w, win_h);

@@ -27,7 +27,7 @@ pub mod resampler;
 
 use apu::Apu;
 use cpu::Cpu;
-use gfx::{Gfx, Scale};
+use gfx::Gfx;
 use input::Input;
 use mapper::Mapper;
 use mem::MemMap;
@@ -54,7 +54,7 @@ fn record_fps(last_time: &mut f64, frames: &mut usize) {
 }
 
 /// Starts the emulator main loop with a ROM and window scaling. Returns when the user presses ESC.
-pub fn start_emulator(rom: Rom, scale: Scale) {
+pub fn start_emulator(rom: Rom, scale: f32) {
     let rom = Box::new(rom);
     println!("Loaded ROM: {}", rom.header);
 
