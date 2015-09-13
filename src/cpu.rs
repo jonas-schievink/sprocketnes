@@ -462,24 +462,22 @@ impl<M: Mem> Cpu<M> {
         self.regs.s -= 1;
     }
     fn pushw(&mut self, val: u16) {
-        // FIXME: Is this correct? FCEU has two self.storeb()s here. Might have different
-        // semantics...
-        let s = self.regs.s;
-        self.storew(0x100 + (s - 1) as u16, val);
-        self.regs.s -= 2;
+        // Push high byte first, then low byte
+        self.pushb(((val >> 8) & 0xff) as u8);
+        self.pushb((val & 0xff) as u8);
     }
     fn popb(&mut self) -> u8 {
-        let s = self.regs.s;
-        let val = self.loadb(0x100 + s as u16 + 1);
+        let s = self.regs.s + 1;
+        let val = self.loadb(0x100 + s as u16);
         self.regs.s += 1;
         val
     }
     fn popw(&mut self) -> u16 {
-        // FIXME: See comment in pushw().
-        let s = self.regs.s;
-        let val = self.loadw(0x100 + s as u16 + 1);
-        self.regs.s += 2;
-        val
+        // Pop low byte first, then high byte
+        let low = self.popb();
+        let high = self.popb();
+
+        ((high as u16) << 8) | low as u16
     }
 
     // Flag helpers
