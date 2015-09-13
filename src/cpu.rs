@@ -15,6 +15,7 @@ const ZERO_FLAG:     u8 = 1 << 1;
 const IRQ_FLAG:      u8 = 1 << 2;
 const DECIMAL_FLAG:  u8 = 1 << 3;
 const BREAK_FLAG:    u8 = 1 << 4;
+const U_FLAG:        u8 = 1 << 5;
 const OVERFLOW_FLAG: u8 = 1 << 6;
 const NEGATIVE_FLAG: u8 = 1 << 7;
 
@@ -491,8 +492,8 @@ impl<M: Mem> Cpu<M> {
         }
     }
     fn set_flags(&mut self, val: u8) {
-        // Flags get munged in a strange way relating to the unused bit 5 on the NES.
-        self.regs.flags = (val | 0x30) - 0x10;
+        // The unused bit isn't really specified, but "most likely on", so we'll set it
+        self.regs.flags = val | U_FLAG;
     }
     fn set_zn(&mut self, val: u8) -> u8 {
         self.set_flag(ZERO_FLAG, val == 0);
@@ -800,6 +801,7 @@ impl<M: Mem> Cpu<M> {
         let flags = self.regs.flags;
         self.pushb(flags);    // FIXME: FCEU sets BREAK_FLAG and U_FLAG here, why?
         self.set_flag(IRQ_FLAG, true);
+        self.set_flag(BREAK_FLAG, true);
         self.regs.pc = self.loadw(BRK_VECTOR);
     }
     fn rti(&mut self) {
@@ -819,7 +821,7 @@ impl<M: Mem> Cpu<M> {
     }
     fn php(&mut self) {
         let flags = self.regs.flags;
-        self.pushb(flags | BREAK_FLAG)
+        self.pushb(flags)
     }
     fn plp(&mut self) {
         let val = self.popb();
