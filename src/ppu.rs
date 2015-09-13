@@ -738,9 +738,14 @@ impl Ppu {
                     }
 
                     // OK, so we know this pixel is opaque. Now if this is the first sprite and the
-                    // background was not transparent, set sprite 0 hit.
-                    if index == 0 && background_opaque {
-                        self.regs.status.set_sprite_zero_hit(true);
+                    // background was not transparent, we might have a sprite-0 hit.
+                    if index == 0 && background_opaque && x < 255 {
+                        // (x=255 never triggers a hit)
+
+                        // If clipping is enabled, x values form 0 to 7 don't trigger a hit
+                        if x > 7 || self.regs.mask.val & 0b110 == 0b110 {
+                            self.regs.status.set_sprite_zero_hit(true);
+                        }
                     }
 
                     // Determine final tile color and do the palette lookup.
