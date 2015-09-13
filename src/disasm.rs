@@ -96,24 +96,21 @@ impl<'a, M: Mem> Disassembler<'a, M> {
     fn sed(&mut self) -> String           { "SED".to_owned()       }
 
     // Branches
-    // FIXME: Should disassemble the displacement!
-    fn bpl(&mut self) -> String           { "BPL xx".to_owned()    }
-    fn bmi(&mut self) -> String           { "BMI xx".to_owned()    }
-    fn bvc(&mut self) -> String           { "BVC xx".to_owned()    }
-    fn bvs(&mut self) -> String           { "BVS xx".to_owned()    }
-    fn bcc(&mut self) -> String           { "BCC xx".to_owned()    }
-    fn bcs(&mut self) -> String           { "BCS xx".to_owned()    }
-    fn bne(&mut self) -> String           { "BNE xx".to_owned()    }
-    fn beq(&mut self) -> String           { "BEQ xx".to_owned()    }
+    fn bpl(&mut self) -> String           { format!("BPL {}", self.relative()) }
+    fn bmi(&mut self) -> String           { format!("BMI {}", self.relative()) }
+    fn bvc(&mut self) -> String           { format!("BVC {}", self.relative()) }
+    fn bvs(&mut self) -> String           { format!("BVS {}", self.relative()) }
+    fn bcc(&mut self) -> String           { format!("BCC {}", self.relative()) }
+    fn bcs(&mut self) -> String           { format!("BCS {}", self.relative()) }
+    fn bne(&mut self) -> String           { format!("BNE {}", self.relative()) }
+    fn beq(&mut self) -> String           { format!("BEQ {}", self.relative()) }
 
     // Jumps
-    // FIXME: Should disassemble the address!
     fn jmp(&mut self) -> String           { format!("JMP {}", self.disw_bump_pc()) }
     fn jmpi(&mut self) -> String          { format!("JMP ({})", self.disw_bump_pc())  }
 
     // Procedure calls
-    // FIXME: Should disassemble the address!
-    fn jsr(&mut self) -> String           { "JSR xx".to_owned()    }
+    fn jsr(&mut self) -> String           { format!("JSR {}", self.disw_bump_pc()) }
     fn rts(&mut self) -> String           { "RTS".to_owned()       }
     fn brk(&mut self) -> String           { "BRK".to_owned()       }
     fn rti(&mut self) -> String           { "RTI".to_owned()       }
@@ -129,7 +126,7 @@ impl<'a, M: Mem> Disassembler<'a, M> {
 
     // Addressing modes
     fn immediate(&mut self) -> String {
-        format!("{}{}", "#", self.disb_bump_pc())
+        format!("#{}", self.disb_bump_pc())
     }
     fn accumulator(&mut self) -> String {
         String::new()
@@ -147,7 +144,7 @@ impl<'a, M: Mem> Disassembler<'a, M> {
         buf.push_str(",Y");
         buf
     }
-    fn absolute(&mut self) -> String           { self.disw_bump_pc()                       }
+    fn absolute(&mut self) -> String      { self.disw_bump_pc() }
     fn absolute_x(&mut self) -> String {
         let mut buf = self.disw_bump_pc();
         buf.push_str(",X");
@@ -163,6 +160,10 @@ impl<'a, M: Mem> Disassembler<'a, M> {
     }
     fn indirect_indexed_y(&mut self) -> String {
         format!("({}),Y", self.disb_bump_pc())
+    }
+    // Special mode only used in comparison opcodes
+    fn relative(&mut self) -> String {
+        format!("{:+}", self.loadb_bump_pc() as i8)
     }
 
     // The main disassembly routine.
