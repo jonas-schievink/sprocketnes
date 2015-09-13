@@ -129,11 +129,11 @@ impl Emulator {
 
                         Event::KeyDown { keycode: Some(Keycode::S), .. } => {
                             self.cpu.save(&mut File::create(&Path::new("state.sav")).unwrap());
-                            self.gfx.status_line.set("Saved state".to_string());
+                            self.gfx.status_line.set("Saved state".to_owned());
                         }
                         Event::KeyDown { keycode: Some(Keycode::L), .. } => {
                             self.cpu.load(&mut File::open(&Path::new("state.sav")).unwrap());
-                            self.gfx.status_line.set("Loaded state".to_string());
+                            self.gfx.status_line.set("Loaded state".to_owned());
                         }
                         Event::KeyDown { keycode: Some(Keycode::M), .. } => {
                             self.mute = !self.mute;

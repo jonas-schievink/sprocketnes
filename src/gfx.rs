@@ -206,7 +206,7 @@ struct StatusLineText {
 impl StatusLineText {
     fn new() -> StatusLineText {
         StatusLineText {
-            string: "".to_string(),
+            string: String::new(),
             animation: Idle,
         }
     }
