@@ -25,11 +25,7 @@ pub trait Mapper {
 
 pub fn create_mapper(rom: Box<Rom>) -> Box<Mapper+Send> {
     match rom.header.ines_mapper() {
-        0 => {
-            Box::new(Nrom {
-                rom: rom,
-            }) as Box<Mapper+Send>
-        },
+        0 => Box::new(Nrom::new(rom)) as Box<Mapper+Send>,
         1 => Box::new(SxRom::new(rom)) as Box<Mapper+Send>,
         2 => Box::new(UxRom::new(rom)) as Box<Mapper+Send>,
         4 => Box::new(TxRom::new(rom)) as Box<Mapper+Send>,
@@ -45,7 +41,27 @@ pub fn create_mapper(rom: Box<Rom>) -> Box<Mapper+Send> {
 
 // TODO: RAM.
 pub struct Nrom {
-    pub rom: Box<Rom>,
+    rom: Box<Rom>,
+    chr_ram: Box<[u8; 8192]>,
+}
+
+impl Nrom {
+    fn new(rom: Box<Rom>) -> Self {
+        if rom.chr.len() > 8192 {
+            panic!("ROM attempted to use {} bytes of CHR with NROM (only supports up to 8K)",
+                rom.chr.len())
+        }
+
+        let mut chr_ram = Box::new([0; 8192]);
+        for (i, byte) in rom.chr.iter().enumerate() {
+            chr_ram[i] = *byte;
+        }
+
+        Nrom {
+            rom: rom,
+            chr_ram: chr_ram,
+        }
+    }
 }
 
 impl Mapper for Nrom {
@@ -59,8 +75,12 @@ impl Mapper for Nrom {
         }
     }
     fn prg_storeb(&mut self, _: u16, _: u8) {}  // Can't store to PRG-ROM.
-    fn chr_loadb(&mut self, addr: u16) -> u8 { self.rom.chr[addr as usize] }
-    fn chr_storeb(&mut self, _: u16, _: u8) {}  // Can't store to CHR-ROM.
+    fn chr_loadb(&mut self, addr: u16) -> u8 {
+        self.chr_ram[addr as usize % 8192]
+    }
+    fn chr_storeb(&mut self, addr: u16, val: u8) {
+        self.chr_ram[addr as usize % 8192] = val;
+    }
     fn next_scanline(&mut self) -> MapperResult { MapperResult::Continue }
 }
 
