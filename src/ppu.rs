@@ -222,6 +222,7 @@ impl Vram {
 impl Mem for Vram {
     #[inline(always)]
     fn loadb(&mut self, addr: u16) -> u8 {
+        let addr = addr & 0x3fff;   // mirrored at 0x4000...
         if addr < 0x2000 {          // Tilesets 0 or 1
             let mut mapper = self.mapper.borrow_mut();
             mapper.chr_loadb(addr)
@@ -230,7 +231,7 @@ impl Mem for Vram {
         } else if addr < 0x4000 {   // Palette area
             self.palette[addr as usize & 0x1f]
         } else {
-            panic!("invalid VRAM read")
+            unreachable!()
         }
     }
     fn storeb(&mut self, addr: u16, val: u8) {
