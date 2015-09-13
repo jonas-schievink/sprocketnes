@@ -703,33 +703,35 @@ impl Apu {
 
     // Resamples and flushes channel buffers to the audio output device if necessary.
     pub fn play_channels(&mut self, mute: bool) {
-        if mute {
-            self.sample_buffer_offset = 0;
-            return;
-        }
-
         let sample_buffer_length = self.sample_buffers[0].samples.len();
         if self.sample_buffer_offset < sample_buffer_length {
             return;
         }
         self.sample_buffer_offset = 0;
 
-        // First, mix all sample buffers into the first one.
-        //
-        // FIXME: This should not be a linear mix, for accuracy.
-        for i in 0..self.sample_buffers[0].samples.len() {
-            let mut val = 0;
-            for j in 0..5 {
-                val += self.sample_buffers[j].samples[i] as i32;
+        if mute {
+            let samples = &mut self.sample_buffers[0].samples;
+            for i in 0..samples.len() {
+                samples[i] = 0;
             }
+        } else {
+            // First, mix all sample buffers into the first one.
+            //
+            // FIXME: This should not be a linear mix, for accuracy.
+            for i in 0..self.sample_buffers[0].samples.len() {
+                let mut val = 0;
+                for j in 0..5 {
+                    val += self.sample_buffers[j].samples[i] as i32;
+                }
 
-            if val > 32767 {
-                val = 32767;
-            } else if val < -32768 {
-                val = -32768;
+                if val > 32767 {
+                    val = 32767;
+                } else if val < -32768 {
+                    val = -32768;
+                }
+
+                self.sample_buffers[0].samples[i] = val as i16;
             }
-
-            self.sample_buffers[0].samples[i] = val as i16;
         }
 
         if self.output_buffer.is_none() {
