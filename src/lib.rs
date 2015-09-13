@@ -35,6 +35,8 @@ use ppu::{Oam, Ppu, Vram};
 use rom::Rom;
 use util::Save;
 
+use sdl2::EventPump;
+
 use std::cell::RefCell;
 use std::fs::File;
 use std::path::Path;
@@ -53,82 +55,105 @@ fn record_fps(last_time: &mut f64, frames: &mut usize) {
     }
 }
 
-/// Starts the emulator main loop with a ROM and window scaling. Returns when the user presses ESC.
-pub fn start_emulator(rom: Rom, scale: f32) {
-    let rom = Box::new(rom);
-    println!("Loaded ROM: {}", rom.header);
+pub struct Emulator {
+    cpu: Cpu<MemMap>,
+    gfx: Gfx<'static>,
+    event_pump: EventPump,
+    pub mute: bool,
+}
 
-    let sdl = sdl2::init().unwrap();
-    let video = sdl.video().unwrap();
-    let audio = sdl.audio().unwrap();
-    let mut event_pump = sdl.event_pump().unwrap();
-    let mut gfx = Gfx::new(&video, scale);
-    let audio_buffer = audio::open(&audio);
+impl Emulator {
+    /// Creates a new emulator and window
+    pub fn new(rom: Rom, scale: f32) -> Emulator {
+        let rom = Box::new(rom);
+        println!("Loaded ROM: {}", rom.header);
 
-    let mapper: Box<Mapper+Send> = mapper::create_mapper(rom);
-    let mapper = Rc::new(RefCell::new(mapper));
-    let ppu = Ppu::new(Vram::new(mapper.clone()), Oam::new());
-    let input = Input::new();
-    let apu = Apu::new(audio_buffer);
-    let memmap = MemMap::new(ppu, input, mapper, apu);
-    let mut cpu = Cpu::new(memmap);
+        let sdl = sdl2::init().unwrap();
+        let video = sdl.video().unwrap();
+        let audio = sdl.audio().unwrap();
+        let event_pump = sdl.event_pump().unwrap();
+        let gfx = Gfx::new(&video, scale);
+        let audio_buffer = audio::open(&audio);
 
-    // TODO: Add a flag to not reset for nestest.log
-    cpu.reset();
+        let mapper: Box<Mapper+Send> = mapper::create_mapper(rom);
+        let mapper = Rc::new(RefCell::new(mapper));
+        let ppu = Ppu::new(Vram::new(mapper.clone()), Oam::new());
+        let input = Input::new();
+        let apu = Apu::new(audio_buffer);
+        let memmap = MemMap::new(ppu, input, mapper, apu);
+        let mut cpu = Cpu::new(memmap);
 
-    let mut last_time = time::precise_time_s();
-    let mut frames = 0;
+        // TODO: Add a flag to not reset for nestest.log
+        cpu.reset();
 
-    'main: loop {
-        cpu.step();
-
-        let ppu_result = cpu.mem.ppu.step(cpu.cy);
-        if ppu_result.vblank_nmi {
-            cpu.nmi();
-        } else if ppu_result.scanline_irq {
-            cpu.irq();
+        Emulator {
+            cpu: cpu,
+            gfx: gfx,
+            event_pump: event_pump,
+            mute: false,
         }
+    }
 
-        cpu.mem.apu.step(cpu.cy);
+    /// Starts the emulator main loop. Returns when the user presses escape or the window is
+    /// closed.
+    pub fn start(&mut self) {
+        let mut last_time = time::precise_time_s();
+        let mut frames = 0;
 
-        if ppu_result.new_frame {
-            gfx.tick();
-            gfx.composite(&mut *cpu.mem.ppu.screen);
-            record_fps(&mut last_time, &mut frames);
-            cpu.mem.apu.play_channels();
+        'main: loop {
+            self.cpu.step();
 
-            for event in event_pump.poll_iter() {
-                use sdl2::event::Event;
-                use sdl2::event::WindowEventId;
-                use sdl2::keyboard::Keycode;
+            let ppu_result = self.cpu.mem.ppu.step(self.cpu.cy);
+            if ppu_result.vblank_nmi {
+                self.cpu.nmi();
+            } else if ppu_result.scanline_irq {
+                self.cpu.irq();
+            }
 
-                match event {
-                    Event::KeyDown { keycode: Some(Keycode::Escape), .. }
-                    | Event::Quit { .. } => break 'main,
+            self.cpu.mem.apu.step(self.cpu.cy);
 
-                    Event::KeyDown { keycode: Some(Keycode::S), .. } => {
-                        cpu.save(&mut File::create(&Path::new("state.sav")).unwrap());
-                        gfx.status_line.set("Saved state".to_string());
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::L), .. } => {
-                        cpu.load(&mut File::open(&Path::new("state.sav")).unwrap());
-                        gfx.status_line.set("Loaded state".to_string());
-                    }
+            if ppu_result.new_frame {
+                self.gfx.tick();
+                self.gfx.composite(&mut self.cpu.mem.ppu.screen);
+                record_fps(&mut last_time, &mut frames);
+                self.cpu.mem.apu.play_channels(self.mute);
 
-                    Event::Window {
-                        win_event_id: WindowEventId::Resized, data1: w, data2: h, ..
-                    } => {
-                        gfx.on_window_resize(w as u32, h as u32);
-                    }
+                for event in self.event_pump.poll_iter() {
+                    use sdl2::event::Event;
+                    use sdl2::event::WindowEventId;
+                    use sdl2::keyboard::Keycode;
 
-                    _ => {
-                        // Let the input module handle it
-                        cpu.mem.input.handle_event(event);
+                    match event {
+                        Event::KeyDown { keycode: Some(Keycode::Escape), .. }
+                        | Event::Quit { .. } => break 'main,
+
+                        Event::KeyDown { keycode: Some(Keycode::S), .. } => {
+                            self.cpu.save(&mut File::create(&Path::new("state.sav")).unwrap());
+                            self.gfx.status_line.set("Saved state".to_string());
+                        }
+                        Event::KeyDown { keycode: Some(Keycode::L), .. } => {
+                            self.cpu.load(&mut File::open(&Path::new("state.sav")).unwrap());
+                            self.gfx.status_line.set("Loaded state".to_string());
+                        }
+                        Event::KeyDown { keycode: Some(Keycode::M), .. } => {
+                            self.mute = !self.mute;
+                        }
+
+                        Event::Window {
+                            win_event_id: WindowEventId::Resized, data1: w, data2: h, ..
+                        } => {
+                            self.gfx.on_window_resize(w as u32, h as u32);
+                        }
+
+                        _ => {
+                            // Let the input module handle it
+                            self.cpu.mem.input.handle_event(event);
+                        }
                     }
                 }
             }
         }
-    }
 
-    audio::close();
+        audio::close();
+    }
 }

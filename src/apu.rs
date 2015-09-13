@@ -702,7 +702,12 @@ impl Apu {
     }
 
     // Resamples and flushes channel buffers to the audio output device if necessary.
-    pub fn play_channels(&mut self) {
+    pub fn play_channels(&mut self, mute: bool) {
+        if mute {
+            self.sample_buffer_offset = 0;
+            return;
+        }
+
         let sample_buffer_length = self.sample_buffers[0].samples.len();
         if self.sample_buffer_offset < sample_buffer_length {
             return;

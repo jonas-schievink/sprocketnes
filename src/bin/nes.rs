@@ -5,6 +5,7 @@
 extern crate nes;
 
 use nes::rom::Rom;
+use nes::Emulator;
 
 use std::env;
 use std::path::Path;
@@ -56,5 +57,6 @@ fn main() {
     let rom_path = &options.rom_path;
     let rom = Rom::load(&mut File::open(&Path::new(rom_path)).unwrap()).unwrap();
 
-    nes::start_emulator(rom, options.scale);
+    let mut nes = Emulator::new(rom, options.scale);
+    nes.start();
 }
