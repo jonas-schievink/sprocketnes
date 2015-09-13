@@ -19,9 +19,9 @@ struct Options {
 fn usage() {
     println!("usage: sprocketnes [options] <path-to-rom>");
     println!("options:");
-    println!("    -1 scale by 1x (default)");
+    println!("    -1 scale by 1x");
     println!("    -2 scale by 2x");
-    println!("    -3 scale by 3x");
+    println!("    -3 scale by 3x (default)");
 }
 
 fn parse_args() -> Option<Options> {
