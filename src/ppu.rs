@@ -380,11 +380,11 @@ impl Mem for Ppu {
             1 => *self.regs.mask,
             2 => self.read_ppustatus(),
             3 => 0, // OAMADDR is read-only
-            4 => panic!("OAM read unimplemented"),
+            4 => 0, // FIXME Implement this
             5 => 0, // PPUSCROLL is read-only
             6 => 0, // PPUADDR is read-only
             7 => self.read_ppudata(),
-            _ => panic!("can't happen")
+            _ => unreachable!()
         }
     }
 
@@ -400,7 +400,7 @@ impl Mem for Ppu {
             5 => self.update_ppuscroll(val),
             6 => self.update_ppuaddr(val),
             7 => self.write_ppudata(val),
-            _ => panic!("can't happen")
+            _ => unreachable!()
         }
     }
 }
@@ -562,7 +562,12 @@ impl Ppu {
         self.regs.scroll.next = PpuScrollDir::XDir;
         self.regs.addr.next = PpuAddrByte::Hi;
 
-        *self.regs.status
+        let value = self.regs.status.val;
+
+        // Clear bit 7 of PPUSTATUS
+        self.regs.status.val &= 0x1f;
+
+        value
     }
 
     fn write_ppudata(&mut self, val: u8) {
