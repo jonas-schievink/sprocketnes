@@ -234,14 +234,16 @@ impl Mem for Vram {
             unreachable!()
         }
     }
+
     fn storeb(&mut self, addr: u16, val: u8) {
+        let addr = addr & 0x3fff;
         if addr < 0x2000 {
             let mut mapper = self.mapper.borrow_mut();
             mapper.chr_storeb(addr, val)
-        } else if addr < 0x3f00 {           // Name table area
+        } else if addr < 0x3f00 {       // Name table area
             let addr = addr & 0x07ff;
             self.nametables[addr as usize] = val;
-        } else if addr < 0x4000 {   // Palette area
+        } else {                        // Palette area
             let mut addr = addr & 0x1f;
             if addr == 0x10 {
                 addr = 0x00;    // Mirror sprite background color into universal background color.
