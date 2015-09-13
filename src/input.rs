@@ -98,16 +98,18 @@ impl Input {
     }
 
     fn handle_gamepad_event(&mut self, key: Keycode, down: bool) {
+        use sdl2::keyboard::Keycode::*;
+
         match key {
-            Keycode::Left   => self.gamepad_0.left   = down,
-            Keycode::Down   => self.gamepad_0.down   = down,
-            Keycode::Up     => self.gamepad_0.up     = down,
-            Keycode::Right  => self.gamepad_0.right  = down,
-            Keycode::Z      => self.gamepad_0.a      = down,
-            Keycode::X      => self.gamepad_0.b      = down,
-            Keycode::RShift => self.gamepad_0.select = down,
-            Keycode::Return => self.gamepad_0.start  = down,
-            _               => {}
+            Left   => self.gamepad_0.left   = down,
+            Down   => self.gamepad_0.down   = down,
+            Up     => self.gamepad_0.up     = down,
+            Right  => self.gamepad_0.right  = down,
+            Z | Y  => self.gamepad_0.a      = down,
+            X      => self.gamepad_0.b      = down,
+            RShift => self.gamepad_0.select = down,
+            Return => self.gamepad_0.start  = down,
+            _      => {}
         }
     }
 
