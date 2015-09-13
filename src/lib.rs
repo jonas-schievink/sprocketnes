@@ -138,6 +138,10 @@ impl Emulator {
                         Event::KeyDown { keycode: Some(Keycode::M), .. } => {
                             self.mute = !self.mute;
                         }
+                        #[cfg(feature = "cpuspew")]
+                        Event::KeyDown { keycode: Some(Keycode::T), .. } => {
+                            self.cpu.trace = !self.cpu.trace;
+                        }
 
                         Event::Window {
                             win_event_id: WindowEventId::Resized, data1: w, data2: h, ..

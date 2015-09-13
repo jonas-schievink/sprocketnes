@@ -8,7 +8,6 @@ use util::Save;
 use std::fs::File;
 use std::ops::Deref;
 
-#[cfg(cpuspew)]
 use disasm::Disassembler;
 
 const CARRY_FLAG:    u8 = 1 << 0;
@@ -327,6 +326,7 @@ pub struct Cpu<M: Mem> {
     pub cy: Cycles,
     regs: Regs,
     pub mem: M,
+    pub trace: bool,
 }
 
 /// The CPU implements Mem so that it can handle writes to the DMA register.
@@ -360,27 +360,68 @@ impl<M: Mem + Save> Save for Cpu<M> {
 }
 
 impl<M: Mem> Cpu<M> {
-    // Debugging
-    #[cfg(cpuspew)]
-    fn trace(&mut self) {
-        let mut disassembler = Disassembler {
-            pc: self.regs.pc,
-            mem: &mut self.mem
-        };
-        println!(
-            "{:04X} {:20s} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{}",
-            self.regs.pc as usize,
-            disassembler.disassemble(),
-            self.regs.a as usize,
-            self.regs.x as usize,
-            self.regs.y as usize,
-            self.regs.flags as usize,
-            self.regs.s as usize,
-            self.cy as usize
-        );
+    // The main fetch-and-decode routine
+    pub fn step(&mut self) {
+        self.trace();
+
+        let op = self.loadb_bump_pc();
+        decode_op!(op, self);
+
+        self.cy += CYCLE_TABLE[op as usize] as Cycles;
     }
-    #[cfg(not(cpuspew))]
-    fn trace(&mut self) {}
+
+    /// External interfaces
+    pub fn reset(&mut self) {
+        self.regs.pc = self.loadw(RESET_VECTOR);
+    }
+
+    pub fn nmi(&mut self) {
+        let (pc, flags) = (self.regs.pc, self.regs.flags);
+        self.pushw(pc);
+        self.pushb(flags);
+        self.regs.pc = self.loadw(NMI_VECTOR);
+    }
+
+    pub fn irq(&mut self) {
+        if self.get_flag(IRQ_FLAG) {
+            return;
+        }
+
+        let (pc, flags) = (self.regs.pc, self.regs.flags);
+        self.pushw(pc);
+        self.pushb(flags);
+        self.regs.pc = self.loadw(BRK_VECTOR);
+    }
+
+    pub fn new(mem: M) -> Cpu<M> {
+        Cpu {
+            cy: 0,
+            regs: Regs::new(),
+            mem: mem,
+            trace: false,
+        }
+    }
+
+    // Debugging
+    fn trace(&mut self) {
+        if self.trace && cfg!(feature = "cpuspew") {
+            let mut disassembler = Disassembler {
+                pc: self.regs.pc,
+                mem: &mut self.mem
+            };
+            println!(
+                "{:04X} {:20} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{}",
+                self.regs.pc as usize,
+                disassembler.disassemble(),
+                self.regs.a as usize,
+                self.regs.x as usize,
+                self.regs.y as usize,
+                self.regs.flags as usize,
+                self.regs.s as usize,
+                self.cy as usize
+            );
+        }
+    }
 
     // Performs DMA to the OAMDATA ($2004) register.
     fn dma(&mut self, hi_addr: u8) {
@@ -787,45 +828,4 @@ impl<M: Mem> Cpu<M> {
 
     // No operation
     fn nop(&mut self) {}
-
-    // The main fetch-and-decode routine
-    pub fn step(&mut self) {
-        self.trace();
-
-        let op = self.loadb_bump_pc();
-        decode_op!(op, self);
-
-        self.cy += CYCLE_TABLE[op as usize] as Cycles;
-    }
-
-    /// External interfaces
-    pub fn reset(&mut self) {
-        self.regs.pc = self.loadw(RESET_VECTOR);
-    }
-
-    pub fn nmi(&mut self) {
-        let (pc, flags) = (self.regs.pc, self.regs.flags);
-        self.pushw(pc);
-        self.pushb(flags);
-        self.regs.pc = self.loadw(NMI_VECTOR);
-    }
-
-    pub fn irq(&mut self) {
-        if self.get_flag(IRQ_FLAG) {
-            return;
-        }
-
-        let (pc, flags) = (self.regs.pc, self.regs.flags);
-        self.pushw(pc);
-        self.pushb(flags);
-        self.regs.pc = self.loadw(BRK_VECTOR);
-    }
-
-    pub fn new(mem: M) -> Cpu<M> {
-        Cpu {
-            cy: 0,
-            regs: Regs::new(),
-            mem: mem,
-        }
-    }
 }
