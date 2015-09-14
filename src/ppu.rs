@@ -380,7 +380,7 @@ impl Mem for Ppu {
             1 => *self.regs.mask,
             2 => self.read_ppustatus(),
             3 => 0, // OAMADDR is read-only
-            4 => 0, // FIXME Implement this
+            4 => self.read_oamdata(),
             5 => 0, // PPUSCROLL is read-only
             6 => 0, // PPUADDR is read-only
             7 => self.read_ppudata(),
@@ -534,6 +534,12 @@ impl Ppu {
     fn write_oamdata(&mut self, val: u8) {
         self.oam.storeb(self.regs.oam_addr as u16, val);
         self.regs.oam_addr += 1;
+    }
+
+    fn read_oamdata(&mut self) -> u8 {
+        let val = self.oam.loadb(self.regs.oam_addr as u16);
+        self.regs.oam_addr += 1;
+        val
     }
 
     fn update_ppuaddr(&mut self, val: u8) {
