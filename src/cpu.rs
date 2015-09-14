@@ -794,12 +794,12 @@ impl<M: Mem> Cpu<M> {
     }
     fn rts(&mut self) { self.regs.pc = self.popw() + 1 }
     fn brk(&mut self) {
+        self.set_flag(BREAK_FLAG, true);
+        self.set_flag(IRQ_FLAG, true);
         let pc = self.regs.pc;
         self.pushw(pc + 1);
         let flags = self.regs.flags;
-        self.pushb(flags);    // FIXME: FCEU sets BREAK_FLAG and U_FLAG here, why?
-        self.set_flag(IRQ_FLAG, true);
-        self.set_flag(BREAK_FLAG, true);
+        self.pushb(flags);
         self.regs.pc = self.loadw(BRK_VECTOR);
     }
     fn rti(&mut self) {
