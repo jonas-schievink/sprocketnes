@@ -371,7 +371,7 @@ impl<M: Mem> Cpu<M> {
         self.cy += CYCLE_TABLE[op as usize] as Cycles;
     }
 
-    /// External interfaces
+    /// Sets PC to the address stored in the reset vector
     pub fn reset(&mut self) {
         self.regs.pc = self.loadw(RESET_VECTOR);
     }
@@ -412,14 +412,14 @@ impl<M: Mem> Cpu<M> {
             };
             println!(
                 "{:04X} {:20} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} CYC:{}",
-                self.regs.pc as usize,
+                self.regs.pc,
                 disassembler.disassemble(),
-                self.regs.a as usize,
-                self.regs.x as usize,
-                self.regs.y as usize,
-                self.regs.flags as usize,
-                self.regs.s as usize,
-                self.cy as usize
+                self.regs.a,
+                self.regs.x,
+                self.regs.y,
+                self.regs.flags,
+                self.regs.s,
+                self.cy
             );
         }
     }
@@ -819,7 +819,8 @@ impl<M: Mem> Cpu<M> {
     }
     fn php(&mut self) {
         let flags = self.regs.flags;
-        self.pushb(flags)
+        self.pushb(flags | BREAK_FLAG);
+        // NB: Setting BREAK is documented in the nesdev wiki but not in the MCS6500 manual!
     }
     fn plp(&mut self) {
         let val = self.popb();
