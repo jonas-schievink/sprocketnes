@@ -16,7 +16,7 @@ pub const SCREEN_WIDTH: usize = 256;
 pub const SCREEN_HEIGHT: usize = 240;
 pub const CYCLES_PER_SCANLINE: u64 = 114;   // 29781 cycles per frame / 261 scanlines
 pub const VBLANK_SCANLINE: usize = 241;
-pub const LAST_SCANLINE: usize = 261;
+pub const LAST_SCANLINE: usize = 261;       // pre-render scanline
 
 static PALETTE: [u8; 192] = [
     124,124,124,    0,0,252,        0,0,188,        68,40,188,
@@ -341,8 +341,8 @@ impl SpriteStruct {
     fn on_scanline(&self, ppu: &Ppu, y: u8) -> bool {
         if y < self.y { return false; }
         match ppu.regs.ctrl.sprite_size() {
-            SpriteSize::SpriteSize8x8 => y < self.y + 8,
-            SpriteSize::SpriteSize8x16 => y < self.y + 16
+            SpriteSize::SpriteSize8x8 => (y as u16) < self.y as u16 + 8,
+            SpriteSize::SpriteSize8x16 => (y as u16) < self.y as u16 + 16
         }
     }
 
@@ -628,17 +628,6 @@ impl Ppu {
         }
     }
 
-    #[inline(always)]
-    fn each_sprite<F>(&mut self, mut f: F)
-        where F: FnMut(&mut Ppu, &SpriteStruct, u8) -> bool{
-        for i in 0..64 {
-            let sprite = self.make_sprite_info(i as u16);
-            if !f(self, &sprite, i as u8) {
-                return
-            }
-        }
-    }
-
     //
     // Rendering
     //
@@ -717,7 +706,7 @@ impl Ppu {
                     let sprite = self.make_sprite_info(index as u16);
 
                     // Don't need to consider this sprite if we aren't in its bounding box.
-                    if !sprite.in_bounding_box(self, x as u8, self.scanline as u8) {
+                    if !sprite.in_bounding_box(self, x, self.scanline as u8) {
                         continue
                     }
 
@@ -769,20 +758,32 @@ impl Ppu {
     fn compute_visible_sprites(&mut self) -> [Option<u8>; 8] {
         let mut count = 0;
         let mut result = [None; 8];
-        self.each_sprite(|this, sprite, index| {
-            if sprite.on_scanline(this, this.scanline as u8) {
-                if count < 8 {
-                    result[count] = Some(index);
-                    count += 1;
-                    true
-                } else {
-                    this.regs.status.set_sprite_overflow(true);
-                    false
+        let mut i = 0;  // Current sprite index
+
+        while i < 64 {
+            let sprite = self.make_sprite_info(i as u16);
+            if sprite.on_scanline(self, self.scanline as u8) {
+                result[count] = Some(i);
+                count += 1;
+
+                if count == 8 {
+                    // All slots filled, this is where the sprite overflow bug happens
+                    // Let's check the next sprite. If it's on the scanline, set the overflow flag.
+                    // If not, we're done (don't emulate the overflow bug)
+                    if i + 1 < 64 {
+                        let sprite = self.make_sprite_info(i as u16 + 1);
+                        if sprite.on_scanline(self, self.scanline as u8) {
+                            self.regs.status.set_sprite_overflow(true);
+                        }
+                    }
+
+                    break
                 }
-            } else {
-                true
             }
-        });
+
+            i += 1;
+        }
+
         result
     }
 
@@ -824,9 +825,6 @@ impl Ppu {
     fn start_vblank(&mut self, result: &mut StepResult) {
         self.regs.status.set_in_vblank(true);
 
-        // FIXME: Is this correct? Or does it happen on the *next* frame?
-        self.regs.status.set_sprite_zero_hit(false);
-
         if self.regs.ctrl.vblank_nmi() {
             result.vblank_nmi = true;
         }
@@ -860,6 +858,8 @@ impl Ppu {
                 result.new_frame = true;
                 self.scanline = 0;
                 self.regs.status.set_in_vblank(false);
+                self.regs.status.set_sprite_zero_hit(false);
+                self.regs.status.set_sprite_overflow(false);
             }
 
             self.cy += CYCLES_PER_SCANLINE;
