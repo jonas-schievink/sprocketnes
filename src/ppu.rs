@@ -376,13 +376,13 @@ impl Mem for Ppu {
     fn loadb(&mut self, addr: u16) -> u8 {
         debug_assert!(addr >= 0x2000 && addr < 0x4000, "invalid PPU register");
         match addr & 7 {
-            0 => *self.regs.ctrl,
-            1 => *self.regs.mask,
+            0 => 0, // PPUCTRL is write-only
+            1 => 0, // PPUMASK is write-only
             2 => self.read_ppustatus(),
-            3 => 0, // OAMADDR is read-only
+            3 => 0, // OAMADDR is write-only
             4 => self.read_oamdata(),
-            5 => 0, // PPUSCROLL is read-only
-            6 => 0, // PPUADDR is read-only
+            5 => 0, // PPUSCROLL is write-only
+            6 => 0, // PPUADDR is write-only
             7 => self.read_ppudata(),
             _ => unreachable!()
         }
