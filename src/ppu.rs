@@ -571,7 +571,7 @@ impl Ppu {
         let value = self.regs.status.val;
 
         // Clear bit 7 of PPUSTATUS
-        self.regs.status.val &= 0x1f;
+        self.regs.status.val &= !(1 << 7);
 
         value
     }
